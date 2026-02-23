@@ -26,10 +26,12 @@ interface InitialChessBoardState {
     from: string;
     to: string;
   } | null;
+  isCheck: boolean;
   capturedPieces: {
     w: string[];
     b: string[];
   };
+  error: string | null;
 }
 
 interface MakeMove {
@@ -46,14 +48,16 @@ const initialState: InitialChessBoardState = {
   players: null,
   turn: TurnValues.w, // w= White
   status: GAME_STATUS.STARTED, // ---------- UPDATE THIS AFTER INTEGRATING SOCKET.IO--------------------- //
-
+  isCheck: false,
   //Performance or UI
   isMoveLoading: false,
   lastMove: null,
+
   capturedPieces: {
     w: [],
     b: [],
   },
+  error: null,
 };
 
 const chessboardSlice = createSlice({
@@ -62,50 +66,56 @@ const chessboardSlice = createSlice({
   reducers: {
     //move logic
     makeMove: (state, action: PayloadAction<MakeMove>) => {
+      //Clean te error
+      state.error = null;
+
       // Dont allow moves when the game hasn't started //
       if (state.status !== GAME_STATUS.STARTED) {
         return;
       }
 
       const game = new Chess(state.fen);
-      const move = game.move(action.payload);
 
+      try {
+        const move = game.move(action.payload);
+        if (move) {
+          //update the board FEN
+          state.fen = game.fen();
 
-      if (move) {
-        //update the board FEN
-        state.fen = game.fen();
+          //store the history
+          state.history.push(move.san);
 
-        //store the history
-        state.history.push(move.san);
+          // change the turn
+          state.turn = game.turn();
 
-        // change the turn
-        state.turn = game.turn();
+          //store the last move
+          state.lastMove = {
+            from: move.from,
+            to: move.to,
+          };
 
-        //store the last move
-        state.lastMove = {
-          from: move.from,
-          to: move.to,
-        };
+          //captured pieces
+          if (move.captured)
+            state.capturedPieces[move.color].push(move.captured);
 
-        //captured pieces
-        if (move.captured) {
-          if (move.color == "w") {
-            state.capturedPieces.w.push(move.captured);
-          } else {
-            state.capturedPieces.b.push(move.captured);
+          //if checkmate
+          if (game.isCheckmate()) {
+            state.status = GAME_STATUS.CHECKMATE;
+          } else if (
+            game.isDraw() ||
+            game.isStalemate() ||
+            game.isThreefoldRepetition()
+          ) {
+            state.status = GAME_STATUS.DRAW;
           }
+          // if the king is in check
+          state.isCheck = game.isCheck();
         }
-
-        //if checkmate
-        if (game.isCheckmate()) state.status = GAME_STATUS.CHECKMATE;
-
-        //if draw
-        if (game.isDraw()) state.status = GAME_STATUS.DRAW;
-
-        // if no capture has been made and no pawn has been moved in the last fifty moves,  make draw
-        if (game.isDrawByFiftyMoves()) state.status = GAME_STATUS.DRAW;
+      } catch (err: any) {
+        console.log(err.message);
+        const message = typeof err?.message === 'string' ? err.message : "";
+        state.error = message.split(":")[0] || "Invalid move";
       }
-      
     },
   },
 });
