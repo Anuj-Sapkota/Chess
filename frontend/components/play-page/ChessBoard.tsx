@@ -5,11 +5,21 @@ import { Chessboard, DraggingPieceDataType } from "react-chessboard";
 import { useDispatch, useSelector } from "react-redux";
 
 const ChessBoard = () => {
-  const { fen } = useSelector((state: RootState) => state.chessboard);
+  const { fen, lastMove, checkSquare } = useSelector(
+    (state: RootState) => state.chessboard,
+  );
 
   const dispatch = useDispatch<AppDispatch>();
 
-  function onPieceDrop({sourceSquare, targetSquare, piece}: {sourceSquare: string, targetSquare: string | null, piece: DraggingPieceDataType}) {
+  function onPieceDrop({
+    sourceSquare,
+    targetSquare,
+    piece,
+  }: {
+    sourceSquare: string;
+    targetSquare: string | null;
+    piece: DraggingPieceDataType;
+  }) {
     console.log(
       `Source Square: ${sourceSquare}, target Square: ${targetSquare}.`,
     );
@@ -26,10 +36,28 @@ const ChessBoard = () => {
 
     return true;
   }
+
+  //custom colors for from, to and the king square when in check
+  const customSquareColors = {
+    //  1. Highlight the from and to of the last move
+    ...(lastMove && {
+      [lastMove.from]: { backgroundColor: "#FCF163" },
+      [lastMove.to]: { backgroundColor: "#FBEC33" },
+    }),
+    ...(checkSquare && {
+      [checkSquare]: {
+        background:
+          "radial-gradient(circle, rgba(255,0,0,.5) 0%, rgba(255,0,0,1) 80%)",
+        },
+    }),
+  };
   const chessboardOptions = {
     position: fen,
     onPieceDrop,
-    id: "play-vs-random",
+    showAnimations: true,
+    allowDrawingArrows: true,
+
+    squareStyles: customSquareColors,
   };
 
   return (

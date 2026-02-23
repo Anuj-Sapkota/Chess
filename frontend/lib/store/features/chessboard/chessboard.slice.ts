@@ -27,6 +27,7 @@ interface InitialChessBoardState {
     to: string;
   } | null;
   isCheck: boolean;
+  checkSquare: string | null;
   capturedPieces: {
     w: string[];
     b: string[];
@@ -49,6 +50,7 @@ const initialState: InitialChessBoardState = {
   turn: TurnValues.w, // w= White
   status: GAME_STATUS.STARTED, // ---------- UPDATE THIS AFTER INTEGRATING SOCKET.IO--------------------- //
   isCheck: false,
+  checkSquare: null,
   //Performance or UI
   isMoveLoading: false,
   lastMove: null,
@@ -109,11 +111,24 @@ const chessboardSlice = createSlice({
             state.status = GAME_STATUS.DRAW;
           }
           // if the king is in check
-          state.isCheck = game.isCheck();
+          if (game.isCheck()) {
+            const currentTurn = game.turn();
+
+            const kindPiece = game
+              .board()
+              .flat()
+              .find(
+                (p) => p !== null && p.type === "k" && p.color === currentTurn,
+              );
+
+            state.checkSquare = kindPiece ? kindPiece.square : null;
+          } else {
+            state.checkSquare = null;
+          }
         }
       } catch (err: any) {
         console.log(err.message);
-        const message = typeof err?.message === 'string' ? err.message : "";
+        const message = typeof err?.message === "string" ? err.message : "";
         state.error = message.split(":")[0] || "Invalid move";
       }
     },
